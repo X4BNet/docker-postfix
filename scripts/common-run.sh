@@ -254,14 +254,23 @@ postfix_setup_relayhost() {
 
 		if [ -n "$RELAYHOST_USERNAME" ] && [ -n "$RELAYHOST_PASSWORD" ]; then
 			echo -e " using username ${emphasis}$RELAYHOST_USERNAME${reset} and password ${emphasis}(redacted)${reset}."
-			if [[ -f /etc/postfix/sasl_passwd ]]; then
-				if ! grep -q -F "$SASL_RELAYHOST $RELAYHOST_USERNAME:$RELAYHOST_PASSWORD" /etc/postfix/sasl_passwd; then
-					sed -i -e "/^$SASL_RELAYHOST .*$/d" /etc/postfix/sasl_passwd
-					echo "$SASL_RELAYHOST $RELAYHOST_USERNAME:$RELAYHOST_PASSWORD" >> /etc/postfix/sasl_passwd
+
+			# iterate SASL_RELAYHOST by comma
+			for host in $(echo $SASL_RELAYHOST | tr "," "\n"); do
+				# trim host
+				host=$(echo $host | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+
+				if [[ -f /etc/postfix/sasl_passwd ]]; then
+					if ! grep -q -F "$host RELAYHOST_USERNAME$:$RELAYHOST_PASSWORD" /etc/postfix/sasl_passwd; then
+						sed -i -e "/^$host .*$/d" /etc/postfix/sasl_passwd
+						echo "$host $RELAYHOST_USERNAME:$RELAYHOST_PASSWORD" >> /etc/postfix/sasl_passwd
+					fi
+				else
+					echo "$host $RELAYHOST_USERNAME:$RELAYHOST_PASSWORD" >> /etc/postfix/sasl_passwd
 				fi
-			else
-				echo "$SASL_RELAYHOST $RELAYHOST_USERNAME:$RELAYHOST_PASSWORD" >> /etc/postfix/sasl_passwd
-			fi
+			done
+
+			
 			postmap lmdb:/etc/postfix/sasl_passwd
 			chown root:root /etc/postfix/sasl_passwd /etc/postfix/sasl_passwd.lmdb
 			chmod 0600 /etc/postfix/sasl_passwd /etc/postfix/sasl_passwd.lmdb
