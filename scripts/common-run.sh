@@ -253,12 +253,12 @@ postfix_setup_relayhost() {
 		fi
 
 		if [ -n "$RELAYHOST_USERNAME" ] && [ -n "$RELAYHOST_PASSWORD" ]; then
-			echo -e " using username ${emphasis}$RELAYHOST_USERNAME${reset} and password ${emphasis}(redacted)${reset}."
 
 			# iterate SASL_RELAYHOST by comma
 			for host in $(echo $SASL_RELAYHOST | tr "," "\n"); do
 				# trim host
 				host=$(echo $host | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+				echo -e " using username ${emphasis}$RELAYHOST_USERNAME${reset} and password ${emphasis}(redacted)${reset} for ${host}."
 
 				if [[ -f /etc/postfix/sasl_passwd ]]; then
 					if ! grep -q -F "$host RELAYHOST_USERNAME$:$RELAYHOST_PASSWORD" /etc/postfix/sasl_passwd; then
@@ -346,7 +346,7 @@ postfix_setup_xoauth2_post_setup() {
 		# 
 		# The fix is therefore simple: If we're not using OAuth2, we remove the plugin from the list and
 		# keep all the plugins installed.
-		other_plugins="$(pluginviewer -c | grep Plugin | cut -d\  -f2 | cut -c2- | rev | cut -c2- | rev | grep -v EXTERNAL | grep -v sasl-xoauth2 | tr '\n' ',' | rev | cut -c2- | rev)"
+		other_plugins="$(saslpluginviewer -c | grep Plugin | cut -d\  -f2 | cut -c2- | rev | cut -c2- | rev | grep -v EXTERNAL | grep -v sasl-xoauth2 | tr '\n' ',' | rev | cut -c2- | rev)"
 		do_postconf -e "smtp_sasl_mechanism_filter=${other_plugins}"
 	fi
 }
@@ -358,7 +358,7 @@ postfix_setup_smtpd_sasl_auth() {
 		do_postconf -e "broken_sasl_auth_clients=yes"
 		
 		[ ! -d /etc/postfix/sasl ] && mkdir /etc/postfix/sasl
-		cat >> /etc/postfix/sasl/smtpd.conf <<EOF
+		cat > /etc/postfix/sasl/smtpd.conf <<EOF
 pwcheck_method: auxprop
 auxprop_plugin: sasldb
 mech_list: PLAIN LOGIN CRAM-MD5 DIGEST-MD5 NTLM
@@ -374,8 +374,11 @@ EOF
 
 		rm -f /tmp/passwd
 
-		[ -f /etc/sasldb2 ] && chown postfix:postfix /etc/sasldb2
-		[ -f /etc/sasl2/sasldb2 ] && chown postfix:postfix /etc/sasl2/sasldb2
+		if [[ -f /etc/sasldb2 ]]; then
+			chown postfix:postfix /etc/sasldb2
+		elif [[ -f /etc/sasl2/sasldb2 ]]; then
+			chown postfix:postfix /etc/sasl2/sasldb2
+		fi
 	fi
 }
 
