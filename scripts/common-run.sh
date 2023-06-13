@@ -369,7 +369,7 @@ EOF
 		# sasldb2
 		echo $SMTPD_SASL_USERS | tr , \\n > /tmp/passwd
 		while IFS=':' read -r _user _pwd; do
-			echo $_pwd | saslpasswd2 -p -c $_user -d 'default'
+			echo $_pwd | saslpasswd2 -p -c $_user -f 'default'
 		done < /tmp/passwd
 
 		rm -f /tmp/passwd
